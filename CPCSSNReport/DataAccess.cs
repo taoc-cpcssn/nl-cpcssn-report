@@ -20,6 +20,24 @@ namespace CPCSSNReport
         string recentDataDrawnDate, lastDataDrawnDate;
         string sCutOffDate;
         string sBeginDate;
+        bool Year1 = false;
+
+        public string ContactGroup
+        {
+            get
+            {
+                string SQL ="";
+                if (Year1)
+                {
+                    SQL = "Patient_1Yr p";                    
+                }
+                else
+                {
+                    SQL = "(SELECT p1.* FROM Patient p1, PatientDemographic pd1 WHERE pd1.PatientStatus_calc='Active' AND p1.Patient_ID = pd1.Patient_ID) p";
+                }
+                return SQL;
+            }
+        }
 
 
         public DataAccess(string currDB, string prevDB)
@@ -55,7 +73,30 @@ namespace CPCSSNReport
             catch (OleDbException ex)
             {
                 Console.WriteLine(ex.StackTrace);
-            }            
+            }
+            cmmd = null;
+
+            string SQLDate = "SELECT CutOffDate FROM Cycle WHERE CutOffDate = (SELECT MAX(CutOffDate) FROM Cycle)";
+            cmmd = new OleDbCommand(SQLDate, conn);
+            try
+            {
+                OleDbDataReader reader = cmmd.ExecuteReader();
+                if (reader.Read())
+                {
+                    DateTime dtCutOff = reader.GetDateTime(0);
+                    recentDataDrawnDate = dtCutOff.ToShortDateString();
+                    dtCutOff = dtCutOff.AddDays(1);
+                    sCutOffDate = dtCutOff.Year + "-" + dtCutOff.Month + "-" + dtCutOff.Day;
+                    DateTime dtBegin = dtCutOff.AddMonths(-3);
+                    sBeginDate = dtBegin.Year + "-" + dtBegin.Month + "-" + dtBegin.Day;
+                }
+                reader.Close();
+            }
+            catch (OleDbException e)
+            {
+                Console.WriteLine(e.StackTrace);
+            }
+            cmmd = null;
         }
 
         public List<string> GetProviders()
@@ -84,8 +125,8 @@ namespace CPCSSNReport
             SQL = SQL + ", COUNT(IIF((YEAR(#" + sCutOffDate + "#)-BirthYear)<=79 AND (YEAR(#" + sCutOffDate + "#)-BirthYear)>=65, p.Patient_ID, NULL)) AS Age65_79";
             SQL = SQL + ", COUNT(IIF((YEAR(#" + sCutOffDate + "#)-BirthYear)>=80, p.Patient_ID, NULL)) AS Age80plus";
             SQL = SQL + ", COUNT(p.Patient_ID) AS AllAge";
-            SQL = SQL + " FROM Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.BirthYear IS NOT NULL AND p.Sex IS NOT NULL";
+            SQL = SQL + " FROM " + ContactGroup;
+            SQL = SQL + " WHERE p.BirthYear IS NOT NULL AND p.Sex IS NOT NULL";
             SQL = SQL + filter;            
             SQL = SQL + " GROUP BY p.Sex";
             OleDbCommand cmmd = new OleDbCommand(SQL, conn);
@@ -121,8 +162,8 @@ namespace CPCSSNReport
             SQL = SQL + ", COUNT(IIF((YEAR(#" + sCutOffDate + "#)-BirthYear)<=79 AND (YEAR(#" + sCutOffDate + "#)-BirthYear)>=65, p.Patient_ID, NULL)) AS Age65_79";
             SQL = SQL + ", COUNT(IIF((YEAR(#" + sCutOffDate + "#)-BirthYear)>=80, p.Patient_ID, NULL)) AS Age80plus";
             SQL = SQL + ", COUNT(p.Patient_ID) AS AllAge";
-            SQL = SQL + " FROM Patient p, PatientDemographic pd, DiseaseCase i WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.BirthYear IS NOT NULL";
+            SQL = SQL + " FROM " + ContactGroup + ", DiseaseCase i";
+            SQL = SQL + " WHERE p.BirthYear IS NOT NULL";
             SQL = SQL + filter;
             SQL = SQL + " AND p.Patient_ID = i.Patient_ID GROUP BY i.Disease, p.Sex";
             OleDbCommand cmmd = new OleDbCommand(SQL, conn);
@@ -179,8 +220,8 @@ namespace CPCSSNReport
         protected void GetPrevalence(string filter)
         {
             Dictionary<string, List<int>> dictPrevalence = new Dictionary<string, List<int>>();
-            string SQL = "SELECT i.Disease, i.Patient_ID FROM DiseaseCase i, Patient p, PatientDemographic pd";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND i.Patient_ID = pd.Patient_ID and p.Patient_ID = pd.Patient_ID";
+            string SQL = "SELECT i.Disease, i.Patient_ID FROM DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE i.Patient_ID = p.Patient_ID";
             SQL = SQL + " AND p.BirthYear IS NOT NULL AND p.Sex IS NOT NULL AND LEN(TRIM(p.Sex))>0";
             SQL = SQL + filter;
 
@@ -208,36 +249,14 @@ namespace CPCSSNReport
             {
                 Console.WriteLine(e.StackTrace);
             }
-            cmmd = null;
-
-            string SQLDate = "SELECT CutOffDate FROM Cycle WHERE CutOffDate = (SELECT MAX(CutOffDate) FROM Cycle)";
-            cmmd = new OleDbCommand(SQLDate, conn);
-            try
-            {
-                OleDbDataReader reader = cmmd.ExecuteReader();
-                if (reader.Read())
-                {
-                    DateTime dtCutOff = reader.GetDateTime(0);
-                    recentDataDrawnDate = dtCutOff.ToShortDateString();
-                    dtCutOff = dtCutOff.AddDays(1);
-                    sCutOffDate = dtCutOff.Year + "-" + dtCutOff.Month + "-" + dtCutOff.Day;
-                    DateTime dtBegin = dtCutOff.AddMonths(-3);
-                    sBeginDate = dtBegin.Year + "-" + dtBegin.Month + "-" + dtBegin.Day;
-                }
-                reader.Close();
-            }
-            catch (OleDbException e)
-            {
-                Console.WriteLine(e.StackTrace);
-            }            
-            cmmd = null;
+            cmmd = null;            
 
 
             Dictionary<string, HashSet<int>> dictPrePrevalence = new Dictionary<string, HashSet<int>>();
             OleDbConnection connPre = new OleDbConnection("Provider=Microsoft.Jet.OLEDB.4.0; Data Source=" + connStrPrevDB);
             connPre.Open();
-            SQL = "SELECT i.Disease, i.Patient_ID FROM DiseaseCase i, Patient p, PatientDemographic pd";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND i.Patient_ID = pd.Patient_ID and p.Patient_ID = pd.Patient_ID";
+            SQL = "SELECT i.Disease, i.Patient_ID FROM DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE i.Patient_ID = p.Patient_ID";
             SQL = SQL + " AND p.BirthYear IS NOT NULL AND p.Sex IS NOT NULL AND LEN(TRIM(p.Sex))>0";
             SQL = SQL + filter;
             OleDbCommand cmmdPre = new OleDbCommand(SQL, connPre);
@@ -266,6 +285,7 @@ namespace CPCSSNReport
             }
             cmmdPre = null;
 
+            string SQLDate = "SELECT CutOffDate FROM Cycle WHERE CutOffDate = (SELECT MAX(CutOffDate) FROM Cycle)";
             cmmdPre = new OleDbCommand(SQLDate, connPre);
             try
             {
@@ -387,9 +407,8 @@ namespace CPCSSNReport
             HashSet<int> hsHTNDMMalePt = new HashSet<int>();
             HashSet<int> hsHTNDmFemalePt = new HashSet<int>();
 
-            string sqlHTN = "SELECT p.Patient_ID, p.Sex FROM Patient p, PatientDemographic pd, DiseaseCase i";
-            sqlHTN = sqlHTN + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            sqlHTN = sqlHTN + " AND p.Patient_ID = i.Patient_ID";
+            string sqlHTN = "SELECT p.Patient_ID, p.Sex FROM DiseaseCase i, " + ContactGroup;
+            sqlHTN = sqlHTN + " WHERE p.Patient_ID = i.Patient_ID";
             sqlHTN = sqlHTN + " AND i.Disease = 'Hypertension'";
             sqlHTN = sqlHTN + filter;
             cmmd = new OleDbCommand(sqlHTN, conn);
@@ -437,9 +456,8 @@ namespace CPCSSNReport
 
             string sqlView = "SELECT e1.* FROM Exam AS e1, (SELECT Max(DateCreated) AS MaxDateCreated, Patient_ID, Exam1 FROM Exam GROUP BY Patient_ID, Exam1) AS e2";
             sqlView = sqlView + " WHERE e1.Patient_ID = e2.Patient_ID and e1.Exam1 = e2.Exam1 and e1.DateCreated = e2.MaxDateCreated";
-            string SQL = "SELECT p.Patient_ID, p.Sex, pe.Exam1, AVG(CDBL(pe.Result1_calc)), pe.Exam2, AVG(CDBL(pe.Result2_calc)) FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView + ") AS pe";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            string SQL = "SELECT p.Patient_ID, p.Sex, pe.Exam1, AVG(CDBL(pe.Result1_calc)), pe.Exam2, AVG(CDBL(pe.Result2_calc)) FROM "+ContactGroup+", DiseaseCase i, (" + sqlView + ") AS pe";
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND pe.Exam1 = 'sBP (mmHg)'";
@@ -599,9 +617,8 @@ namespace CPCSSNReport
             
             string sqlView = "SELECT e1.* FROM Exam AS e1, (SELECT Max(DateCreated) AS MaxDateCreated, Patient_ID, Exam1 FROM Exam GROUP BY Patient_ID, Exam1) AS e2";
             sqlView = sqlView + " WHERE e1.Patient_ID = e2.Patient_ID and e1.Exam1 = e2.Exam1 and e1.DateCreated = e2.MaxDateCreated";
-            string SQL = "SELECT p.Patient_ID, p.Sex, pe.Exam1, AVG(CDBL(pe.Result1_calc)), pe.Exam2, AVG(CDBL(pe.Result2_calc)) FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView + ") AS pe";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            string SQL = "SELECT p.Patient_ID, p.Sex, pe.Exam1, AVG(CDBL(pe.Result1_calc)), pe.Exam2, AVG(CDBL(pe.Result2_calc)) FROM "+ContactGroup+", DiseaseCase i, (" + sqlView + ") AS pe";
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND pe.Exam1 = 'sBP (mmHg)'";
@@ -700,9 +717,8 @@ namespace CPCSSNReport
             sqlView = sqlView + " WHERE a.Name_calc IN ('LDL','HBA1C')";
             sqlView = sqlView + " AND a.DateCreated = b.recentDate AND a.Name_calc = b.Name_calc AND a.Patient_ID = b.Patient_ID";
             
-            SQL = "SELECT p.Patient_ID, p.Sex, lr.Name_calc, lr.TestResult FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView + ") AS lr";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = "SELECT p.Patient_ID, p.Sex, lr.Name_calc, lr.TestResult FROM "+ContactGroup+", DiseaseCase i, (" + sqlView + ") AS lr";
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = lr.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + filter;
@@ -787,9 +803,8 @@ namespace CPCSSNReport
         {
             //Hyertension Thiazides
             string SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_Thiazide_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -800,8 +815,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_ACEI_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -812,8 +827,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_ARB_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;             
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -824,8 +839,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_CCB_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;                     
+            SQL = SQL + "  WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -837,8 +852,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_BB_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;               
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -849,8 +864,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_Other_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -870,8 +885,8 @@ namespace CPCSSNReport
             SQL = SQL + ", COUNT(IIF(LEFT(Code_calc,4) IN ('C09C', 'C09D'), 1, NULL)) AS ARB";
             SQL = SQL + ", COUNT(IIF(LEFT(Code_calc,4) IN ('C08C', 'C08D', 'C08E') OR LEFT(Code_calc,5) IN ('C09BB', 'C09DB'), 1, NULL)) AS CCB";
             SQL = SQL + ", COUNT(IIF(LEFT(Code_calc,3) IN ('C07'), 1, NULL)) AS BB";
-            SQL = SQL + " FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + " FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -885,8 +900,8 @@ namespace CPCSSNReport
             SQLExec(SQLStr);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS OA_NSAID_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Osteoarthritis'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -897,8 +912,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS OA_Acetaminophen_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Osteoarthritis'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -909,8 +924,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS OA_Steroid_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Osteoarthritis'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -921,8 +936,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS OA_Opiate_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Osteoarthritis'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -933,8 +948,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_InhAC_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -945,8 +960,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_InhSteroid_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -957,8 +972,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_InhB2A_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -970,8 +985,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_LABA_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -982,8 +997,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_SABA_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -994,8 +1009,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_OralSteroid_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1006,8 +1021,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_Other_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1018,8 +1033,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Metformin_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1030,8 +1045,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Sulfonylure_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1042,8 +1057,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Glitazones_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1054,8 +1069,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Gliptins_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1066,8 +1081,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Acarbose_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1078,8 +1093,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Insulin_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1090,8 +1105,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_Other_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1102,8 +1117,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DP_Tricyclics_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1114,8 +1129,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DP_SSRI_SNRI_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1126,8 +1141,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DP_Benzo_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1138,8 +1153,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DP_Antipsychotic_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1150,8 +1165,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DP_Other_Taking FROM (";
-            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, m.Patient_ID FROM Medication m, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
@@ -1165,8 +1180,8 @@ namespace CPCSSNReport
         protected void GetLabScreenProc(string filter)
         {
             string SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_HBA1C_3MONTHS FROM (";
-            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = l.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND DATEDIFF('m',l.PerformedDate,#" + sCutOffDate + "#)<=3 AND l.Name_calc='HBA1C'";
@@ -1176,8 +1191,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_LIPID_1YEAR FROM (";
-            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = l.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND DATEDIFF('m',l.PerformedDate,#" + sCutOffDate + "#)<=12 AND l.Name_calc IN ('HDL','LDL','CALCULATED LDL','TRIGLYCERIDES','TOTAL CHOLESTEROL')";
@@ -1187,8 +1202,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_MICRAL_CREAT_1YEAR FROM (";
-            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = l.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND DATEDIFF('m',l.PerformedDate,#" + sCutOffDate + "#)<=12 AND l.Name_calc IN ('URINE ALBUMIN CREATININE RATIO')";
@@ -1198,8 +1213,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_FBS_1YEAR FROM (";
-            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = l.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND DATEDIFF('m',l.PerformedDate,#" + sCutOffDate + "#)<=12 AND l.Name_calc IN ('FASTING GLUCOSE')";
@@ -1209,8 +1224,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_LIPID_1YEAR FROM (";
-            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, l.Patient_ID FROM Lab l, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = l.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND DATEDIFF('m',l.PerformedDate,#" + sCutOffDate + "#)<=12 AND l.Name_calc IN ('HDL','LDL','CALCULATED LDL','TRIGLYCERIDES','TOTAL CHOLESTEROL')";
@@ -1234,8 +1249,8 @@ namespace CPCSSNReport
         protected void GetExamScreenProc(string filter)
         {
             string SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_BP_3MONTHS FROM (";
-            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND DATEDIFF('m',pe.DateCreated,#" + sCutOffDate + "#)<=3 AND (pe.Exam1 ='sBP (mmHg)' OR pe.Exam2 ='dBP (mmHg)')";
@@ -1245,8 +1260,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_WEIGHT_1YEAR FROM (";
-            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND DATEDIFF('m',pe.DateCreated,#" + sCutOffDate + "#)<=12 AND pe.Exam1 IN ('Weight (kg)')";
@@ -1256,8 +1271,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS DM_HEIGHT FROM (";
-            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, " + ContactGroup; 
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
             SQL = SQL + " AND pe.Exam1 IN ('Height (cm)')";
@@ -1282,9 +1297,8 @@ namespace CPCSSNReport
             sqlView2 += " AND (a.UnitOfMeasure_calc IS NOT NULL OR LEN(TRIM(a.UnitOfMeasure_calc))=0)";
             sqlView2 += " GROUP BY a.Patient_ID";
 
-            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS DM_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS DM_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM "+ContactGroup+", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";            
@@ -1292,9 +1306,8 @@ namespace CPCSSNReport
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus') GROUP BY p.Sex";            
             SQLExecDbl(SQL);
 
-            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_DM_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_DM_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM " + ContactGroup + ", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";
@@ -1303,8 +1316,8 @@ namespace CPCSSNReport
             SQLExecDbl(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_BP_6MONTHS FROM (";
-            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND DATEDIFF('m',pe.DateCreated,#" + sCutOffDate + "#)<=6 AND (pe.Exam1 ='sBP (mmHg)' OR pe.Exam2 ='dBP (mmHg)')";
@@ -1314,8 +1327,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_WEIGHT_1YEAR FROM (";
-            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND DATEDIFF('m',pe.DateCreated,#" + sCutOffDate + "#)<=12 AND pe.Exam1 IN ('Weight (kg)')";
@@ -1325,8 +1338,8 @@ namespace CPCSSNReport
             SQLExec(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_HEIGHT FROM (";
-            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, pe.Patient_ID FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Hypertension'";
             SQL = SQL + " AND pe.Exam1 IN ('Height (cm)')";
@@ -1335,9 +1348,8 @@ namespace CPCSSNReport
             SQL = SQL + ") AS PtLab GROUP BY Sex";
             SQLExec(SQL);
 
-            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS HTN_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS HTN_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM "+ContactGroup+", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";
@@ -1345,9 +1357,8 @@ namespace CPCSSNReport
             SQL = SQL + " AND i.Disease = 'Hypertension') GROUP BY p.Sex";    
             SQLExecDbl(SQL);
 
-            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_HTN_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM Patient p, PatientDemographic pd, DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";
-            SQL = SQL + " WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_HTN_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM "+ContactGroup+", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";
@@ -1359,8 +1370,8 @@ namespace CPCSSNReport
         protected void GetSmokingStatus(string filter)
         {
             string SQL = "SELECT Sex, COUNT(Patient_ID) AS COPD_Smoking_Status FROM (";
-            SQL = SQL + "SELECT p.Sex, r.Patient_ID FROM RiskFactor r, DiseaseCase i, Patient p, PatientDemographic pd WHERE pd.PatientStatus_calc='Active' AND p.Patient_ID = pd.Patient_ID";
-            SQL = SQL + " AND p.Patient_ID = i.Patient_ID";
+            SQL = SQL + "SELECT p.Sex, r.Patient_ID FROM RiskFactor r, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = r.Patient_ID";
             SQL = SQL + " AND i.Disease = 'COPD'";
             SQL = SQL + " AND r.Name_calc IN ('Smoking')";
