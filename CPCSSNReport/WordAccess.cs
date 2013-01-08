@@ -223,7 +223,7 @@ namespace CPCSSNReport
 
         public string ByPractice(string s)
         {
-            return " AND pd.Site_ID =" + s;
+            return " AND p.Site_ID =" + s;
         }
 
         public string ByGroup(string s)

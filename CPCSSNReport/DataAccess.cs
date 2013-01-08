@@ -29,11 +29,11 @@ namespace CPCSSNReport
                 string SQL ="";
                 if (Year1)
                 {
-                    SQL = "Patient_1Yr p";                    
+                    SQL = "(SELECT p1.*, pd1.Site_ID FROM Patient_1Yr p1, PatientDemographic pd1 WHERE p1.Patient_ID = pd1.Patient_ID) p";                    
                 }
                 else
                 {
-                    SQL = "(SELECT p1.* FROM Patient p1, PatientDemographic pd1 WHERE pd1.PatientStatus_calc='Active' AND p1.Patient_ID = pd1.Patient_ID) p";
+                    SQL = "(SELECT p1.*, pd1.Site_ID FROM Patient p1, PatientDemographic pd1 WHERE pd1.PatientStatus_calc='Active' AND p1.Patient_ID = pd1.Patient_ID) p";
                 }
                 return SQL;
             }
@@ -1280,39 +1280,33 @@ namespace CPCSSNReport
             SQL = SQL + " GROUP BY p.Sex, pe.Patient_ID";
             SQL = SQL + ") AS PtLab GROUP BY Sex";
             SQLExec(SQL);
-
-            string sqlView = "SELECT a.Patient_ID, AVG(IIF(UnitOfMeasure_calc = 'cm', 0.01, 0.0254) * CDBL(Result1_calc)) AS HeightResult";
-            sqlView += " FROM Exam a WHERE";
-            sqlView += " a.Exam1 = 'Height (cm)'";
-            sqlView += " AND a.DateCreated = (SELECT MAX(b.DateCreated) FROM Exam b WHERE b.Exam1=a.Exam1 AND b.Patient_ID=a.Patient_ID)";
-            sqlView += " AND IsNumeric (Result1_calc)";
-            sqlView += " AND (a.UnitOfMeasure_calc IS NOT NULL OR LEN(TRIM(a.UnitOfMeasure_calc))=0)";
-            sqlView += " GROUP BY a.Patient_ID";
-
-            string sqlView2 = "SELECT a.Patient_ID, AVG(IIF(UnitOfMeasure_calc = 'lbs', 0.453, 1) * CDBL(Result1_calc)) AS WeightResult";
-            sqlView2 += " FROM Exam a WHERE";
-            sqlView2 += " a.Exam1 = 'Weight (kg)'";
-            sqlView2 += " AND a.DateCreated = (SELECT MAX(b.DateCreated) FROM Exam b WHERE b.Exam1=a.Exam1 AND b.Patient_ID=a.Patient_ID)";
-            sqlView2 += " AND IsNumeric (Result1_calc)";
-            sqlView2 += " AND (a.UnitOfMeasure_calc IS NOT NULL OR LEN(TRIM(a.UnitOfMeasure_calc))=0)";
-            sqlView2 += " GROUP BY a.Patient_ID";
-
-            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS DM_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM "+ContactGroup+", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            
+            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS DM_BMI FROM (";
+            SQL = SQL + "SELECT p.Sex, CDBL(Result1_calc) AS DM_BMI_P FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + ", (SELECT Patient_ID, MAX(DateCreated) AS RecentDate FROM Exam WHERE Exam1='BMI (kg/m^2)' AND ISNUMERIC(Result1_calc) GROUP BY Patient_ID) pew";
             SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
+            SQL = SQL + " AND pew.RecentDate = pe.DateCreated";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";            
+            SQL = SQL + " AND pe.Exam1='BMI (kg/m^2)'";
+            SQL = SQL + " AND ISNUMERIC(Result1_calc)";
             SQL = SQL + filter;
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus') GROUP BY p.Sex";            
-            SQLExecDbl(SQL);
+            SQLExecDbl(SQL);            
 
-            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_DM_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM " + ContactGroup + ", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_DM_BMI FROM (";
+            SQL = SQL + "SELECT p.Sex, CDBL(Result1_calc) AS DM_BMI_P FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + ", (SELECT Patient_ID, MAX(DateCreated) AS RecentDate FROM Exam WHERE Exam1='BMI (kg/m^2)' AND ISNUMERIC(Result1_calc) GROUP BY Patient_ID) pew";
             SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
+            SQL = SQL + " AND pew.RecentDate = pe.DateCreated";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";
+            SQL = SQL + " AND pe.Exam1='BMI (kg/m^2)'";
+            SQL = SQL + " AND ISNUMERIC(Result1_calc)";
             SQL = SQL + filter;
-            SQL = SQL + " AND i.Disease = 'Diabetes Mellitus')";    
+            SQL = SQL + " AND i.Disease = 'Diabetes Mellitus')";
             SQLExecDbl(SQL);
 
             SQL = "SELECT Sex, COUNT(Patient_ID) AS HTN_BP_6MONTHS FROM (";
@@ -1348,20 +1342,30 @@ namespace CPCSSNReport
             SQL = SQL + ") AS PtLab GROUP BY Sex";
             SQLExec(SQL);
 
-            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS HTN_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM "+ContactGroup+", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = "SELECT Sex, Format(AVG(DM_BMI_P),'#.0') AS HTN_BMI FROM (";
+            SQL = SQL + "SELECT p.Sex, CDBL(Result1_calc) AS DM_BMI_P FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + ", (SELECT Patient_ID, MAX(DateCreated) AS RecentDate FROM Exam WHERE Exam1='BMI (kg/m^2)' AND ISNUMERIC(Result1_calc) GROUP BY Patient_ID) pew";
             SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
+            SQL = SQL + " AND pew.RecentDate = pe.DateCreated";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";
-            SQL = SQL + filter;            
-            SQL = SQL + " AND i.Disease = 'Hypertension') GROUP BY p.Sex";    
-            SQLExecDbl(SQL);
+            SQL = SQL + " AND pe.Exam1='BMI (kg/m^2)'";
+            SQL = SQL + " AND ISNUMERIC(Result1_calc)";
+            SQL = SQL + filter;
+            SQL = SQL + " AND i.Disease = 'Hypertension') GROUP BY p.Sex";
+            SQLExecDbl(SQL);                        
 
-            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_HTN_BMI FROM (SELECT p.Patient_ID, p.Sex, (pew.WeightResult / (pe.HeightResult * pe.HeightResult)) AS DM_BMI_P FROM "+ContactGroup+", DiseaseCase i, (" + sqlView2 + ") AS pew, (" + sqlView + ") AS pe";            
+            SQL = "SELECT Format(AVG(DM_BMI_P),'#.0') AS Sum_HTN_BMI FROM (";
+            SQL = SQL + "SELECT p.Sex, CDBL(Result1_calc) AS DM_BMI_P FROM Exam pe, DiseaseCase i, " + ContactGroup;
+            SQL = SQL + ", (SELECT Patient_ID, MAX(DateCreated) AS RecentDate FROM Exam WHERE Exam1='BMI (kg/m^2)' AND ISNUMERIC(Result1_calc) GROUP BY Patient_ID) pew";
             SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pe.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = pew.Patient_ID";
+            SQL = SQL + " AND pew.RecentDate = pe.DateCreated";
             SQL = SQL + " AND (Year(#" + sCutOffDate + "#) - p.BirthYear)>=18";
+            SQL = SQL + " AND pe.Exam1='BMI (kg/m^2)'";
+            SQL = SQL + " AND ISNUMERIC(Result1_calc)";
             SQL = SQL + filter;
             SQL = SQL + " AND i.Disease = 'Hypertension')";
             SQLExecDbl(SQL);
