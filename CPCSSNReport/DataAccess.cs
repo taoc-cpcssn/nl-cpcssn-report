@@ -531,22 +531,34 @@ namespace CPCSSNReport
                 int nF = hsHTNOnlyFemalePt.Count;
 
                 value = nDBPDMLe80M.ToString();
-                pct = ((double)nDBPDMLe80M / nDMM * 100).ToString("0.#") + "%";
+                if (nDMM ==0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nDBPDMLe80M / nDMM * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Male_HTN_DM_DBP_LE_80", value);
 
                 value = nSBPDMLe130M.ToString();
-                pct = ((double)nSBPDMLe130M / nDMM * 100).ToString("0.#") + "%";
+                if (nDMM == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nSBPDMLe130M / nDMM * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Male_HTN_DM_SBP_LE_130", value);
                 
                 value = nDBPLe90M.ToString();
-                pct = ((double)nDBPLe90M / nM * 100).ToString("0.#") + "%";
+                if (nM == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nDBPLe90M / nM * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Male_HTN_DBP_LE_90", value);
 
                 value = nSBPLe140M.ToString();
-                pct = ((double)nSBPLe140M / nM * 100).ToString("0.#") + "%";
+                if (nM == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nSBPLe140M / nM * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Male_HTN_SBP_LE_140", value);
 
@@ -556,44 +568,68 @@ namespace CPCSSNReport
                 //dictDemoGroup.Add("Female_HTN_SBP_LE_140", nSBPLe140F);
 
                 value = nDBPDMLe80F.ToString();
-                pct = ((double)nDBPDMLe80F / nDMF * 100).ToString("0.#") + "%";
+                if (nDMF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nDBPDMLe80F / nDMF * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Female_HTN_DM_DBP_LE_80", value);
 
                 value = nSBPDMLe130F.ToString();
-                pct = ((double)nSBPDMLe130F / nDMF * 100).ToString("0.#") + "%";
+                if (nDMF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nSBPDMLe130F / nDMF * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Female_HTN_DM_SBP_LE_130", value);
 
                 value = nDBPLe90F.ToString();
-                pct = ((double)nDBPLe90F / nF * 100).ToString("0.#") + "%";
+                if (nF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nDBPLe90F / nF * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Female_HTN_DBP_LE_90", value);
 
                 value = nSBPLe140F.ToString();
-                pct = ((double)nSBPLe140F / nF * 100).ToString("0.#") + "%";
+                if (nF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)nSBPLe140F / nF * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Female_HTN_SBP_LE_140", value);
 
                 //Sum
 
                 value = (nDBPDMLe80M + nDBPDMLe80F).ToString();
-                pct = ((double)(nDBPDMLe80M + nDBPDMLe80F) / (nDMM + nDMF) * 100).ToString("0.#") + "%";
+                if (nDMM + nDMF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)(nDBPDMLe80M + nDBPDMLe80F) / (nDMM + nDMF) * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Sum_HTN_DM_DBP_LE_80", value);
 
                 value = (nSBPDMLe130M + nSBPDMLe130F).ToString();
-                pct = ((double)(nSBPDMLe130M + nSBPDMLe130F) / (nDMM + nDMF) * 100).ToString("0.#") + "%";
+                if (nDMM + nDMF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)(nSBPDMLe130M + nSBPDMLe130F) / (nDMM + nDMF) * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Sum_HTN_DM_SBP_LE_130", value);
 
                 value = (nDBPLe90M + nDBPLe90F).ToString();
-                pct = ((double) (nDBPLe90M + nDBPLe90F) / (nM + nF) * 100).ToString("0.#") + "%";
+                if (nM + nF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double) (nDBPLe90M + nDBPLe90F) / (nM + nF) * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Sum_HTN_DBP_LE_90", value);
 
                 value = (nSBPLe140M + nSBPLe140F).ToString();
-                pct = ((double)(nSBPLe140M + nSBPLe140F) / (nM + nF) * 100).ToString("0.#") + "%";
+                if (nM + nF == 0)
+                    pct = 0.ToString("0.#") + "%";
+                else
+                    pct = ((double)(nSBPLe140M + nSBPLe140F) / (nM + nF) * 100).ToString("0.#") + "%";
                 value = value + "(" + pct + ")";
                 dictDemoStr.Add("Sum_HTN_SBP_LE_140", value);
 
@@ -1516,128 +1552,177 @@ namespace CPCSSNReport
             {
                 dictDemoGroup.Add("DNT_MALE_DM", dictDemoGroup["Male_DM_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_DM", 0);
 
             if (dictDemoGroup.ContainsKey("Female_DM_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_DM", dictDemoGroup["Female_DM_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_DM", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_DM_AllAge"))
             {
                 dictDemoGroup.Add("DNT_SUM_DM", dictDemoGroup["Sum_DM_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_DM", 0);
 
             //HTN
             if (dictDemoGroup.ContainsKey("Male_HTN_AllAge"))
             {
                 dictDemoGroup.Add("DNT_MALE_HTN", dictDemoGroup["Male_HTN_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_HTN", 0);
 
             if (dictDemoGroup.ContainsKey("Female_HTN_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_HTN", dictDemoGroup["Female_HTN_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_HTN", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_HTN_AllAge"))
             {                
                 dictDemoGroup.Add("DNT_SUM_HTN", dictDemoGroup["Sum_HTN_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_HTN", 0);
 
             //COPD
             if (dictDemoGroup.ContainsKey("Male_COPD_AllAge"))
             {                
                 dictDemoGroup.Add("DNT_MALE_COPD", dictDemoGroup["Male_COPD_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_COPD", 0);
 
             if (dictDemoGroup.ContainsKey("Female_COPD_AllAge"))
             {                
                 dictDemoGroup.Add("DNT_FEMALE_COPD", dictDemoGroup["Female_COPD_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_COPD", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_COPD_AllAge"))
             {
                 dictDemoGroup.Add("DNT_SUM_COPD", dictDemoGroup["Sum_COPD_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_COPD", 0);
 
             //OA
             if (dictDemoGroup.ContainsKey("Male_OA_AllAge"))
             {
                 dictDemoGroup.Add("DNT_MALE_OA", dictDemoGroup["Male_OA_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_OA", 0);
+
 
             if (dictDemoGroup.ContainsKey("Female_OA_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_OA", dictDemoGroup["Female_OA_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_OA", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_OA_AllAge"))
             {                
                 dictDemoGroup.Add("DNT_SUM_OA", dictDemoGroup["Sum_OA_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_OA", 0);
 
             //Depression
             if (dictDemoGroup.ContainsKey("Male_DP_AllAge"))
             {
                 dictDemoGroup.Add("DNT_MALE_DP", dictDemoGroup["Male_DP_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_DP", 0);
 
             if (dictDemoGroup.ContainsKey("Female_DP_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_DP", dictDemoGroup["Female_DP_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_DP", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_DP_AllAge"))
             {
                 dictDemoGroup.Add("DNT_SUM_DP", dictDemoGroup["Sum_DP_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_DP", 0);
 
             //Epilepsy            
             if (dictDemoGroup.ContainsKey("Male_EPL_AllAge"))
             {
                 dictDemoGroup.Add("DNT_MALE_EPL", dictDemoGroup["Male_EPL_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_EPL", 0);
 
             if (dictDemoGroup.ContainsKey("Female_EPL_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_EPL", dictDemoGroup["Female_EPL_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_EPL", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_EPL_AllAge"))
             {
                 dictDemoGroup.Add("DNT_SUM_EPL", dictDemoGroup["Sum_EPL_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_EPL", 0);
 
             //Dementia            
             if (dictDemoGroup.ContainsKey("Male_DEM_AllAge"))
             {
                 dictDemoGroup.Add("DNT_MALE_DEM", dictDemoGroup["Male_DEM_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_DEM", 0);
 
             if (dictDemoGroup.ContainsKey("Female_DEM_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_DEM", dictDemoGroup["Female_DEM_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_DEM", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_DEM_AllAge"))
             {
                 dictDemoGroup.Add("DNT_SUM_DEM", dictDemoGroup["Sum_DEM_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_DEM", 0);
 
             //Parkinson's Disease            
             if (dictDemoGroup.ContainsKey("Male_PAK_AllAge"))
             {
                 dictDemoGroup.Add("DNT_MALE_PAK", dictDemoGroup["Male_PAK_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_MALE_PAK", 0);
 
             if (dictDemoGroup.ContainsKey("Female_PAK_AllAge"))
             {
                 dictDemoGroup.Add("DNT_FEMALE_PAK", dictDemoGroup["Female_PAK_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_FEMALE_PAK", 0);
 
             if (dictDemoGroup.ContainsKey("Sum_PAK_AllAge"))
             {
                 dictDemoGroup.Add("DNT_SUM_PAK", dictDemoGroup["Sum_PAK_AllAge"]);
             }
+            else
+                dictDemoGroup.Add("DNT_SUM_PAK", 0);
         }
 
         protected void CalPct()
@@ -1654,7 +1739,11 @@ namespace CPCSSNReport
                         string prefix = key.Substring(0, pos);
                         if (dictDemoGroup.ContainsKey("DNT_" + prefix.ToUpper()))
                         {
-                            string pct = ((double)dictDemoGroup[key] / dictDemoGroup["DNT_" + prefix.ToUpper()] * 100).ToString("0.#") + "%";
+                            string pct;
+                            if (dictDemoGroup["DNT_" + prefix.ToUpper()] == 0)
+                                pct = 0.ToString("0.#") + "%";
+                            else
+                                pct= ((double)dictDemoGroup[key] / dictDemoGroup["DNT_" + prefix.ToUpper()] * 100).ToString("0.#") + "%";
                             value = value + "(" + pct + ")";
                         }
                     }
