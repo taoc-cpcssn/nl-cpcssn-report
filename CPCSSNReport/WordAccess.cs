@@ -10,7 +10,7 @@ using System.Diagnostics;
 
 namespace CPCSSNReport
 {
-    class WordAccess : IDisposable
+    class WordAccess
     {
         DataAccess data;
         string strTemplate;
@@ -428,37 +428,7 @@ namespace CPCSSNReport
                 int.TryParse(s.Substring(1), out x);
             }
         }
-
-        public void Dispose()
-        {
-            Dispose(true);            
-            GC.SuppressFinalize(this);
-        }
-      
-        private void Dispose(bool disposing)
-        {            
-            if (!this.disposed)
-            {
-                // If disposing equals true, dispose all managed 
-                // and unmanaged resources.
-                if (disposing)
-                {                 
-                }
-                //QuitBook();                
-            }
-            disposed = true;
-        }
-
-        ~WordAccess()
-        {
-            // Do not re-create Dispose clean-up code here.
-            // Calling Dispose(false) is optimal in terms of
-            // readability and maintainability.
-            Dispose(false);
-        }
-
-
-        private bool disposed = false;
+       
         Excel._Workbook oWB;
         Excel.Application oXL;
     }    

@@ -9,7 +9,7 @@ using System.IO;
 
 namespace CPCSSNReport
 {
-    class DataAccess
+    class DataAccess : IDisposable
     {
         OleDbConnection conn;
         Dictionary<string, int> dictDemoGroup;
@@ -46,7 +46,7 @@ namespace CPCSSNReport
             connStrPrevDB = prevDB;
             conn = new OleDbConnection("Provider=Microsoft.Jet.OLEDB.4.0; Data Source=" + connStrCurrDB);
             conn.Open();
-        }
+        }        
 
         public void LoadProviderInfo()
         {            
@@ -1493,11 +1493,7 @@ namespace CPCSSNReport
             }
             cmmd = null;
         }
-
-        public void Close()
-        {
-            conn.Close();
-        }
+       
 
         protected void CalSum()
         {
@@ -1790,5 +1786,36 @@ namespace CPCSSNReport
                 log.Close();
             }
         }
+
+        public void Dispose()
+        {
+            Dispose(true);            
+            GC.SuppressFinalize(this);
+        }
+      
+        private void Dispose(bool disposing)
+        {            
+            if (!this.disposed)
+            {
+                // If disposing equals true, dispose all managed 
+                // and unmanaged resources.
+                if (disposing)
+                {
+                    conn.Close();
+                    conn = null;
+                }                
+            }
+            disposed = true;
+        }
+
+        ~DataAccess()
+        {
+            // Do not re-create Dispose clean-up code here.
+            // Calling Dispose(false) is optimal in terms of
+            // readability and maintainability.
+            Dispose(false);
+        }
+
+        private bool disposed=false;
     }
 }
