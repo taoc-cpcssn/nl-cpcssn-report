@@ -266,7 +266,8 @@ namespace CPCSSNReport
                 errorMessage = "Error: ";
                 errorMessage = String.Concat(errorMessage, theException.Message);
                 errorMessage = String.Concat(errorMessage, " Line: ");
-                errorMessage = String.Concat(errorMessage, theException.Source);                
+                errorMessage = String.Concat(errorMessage, theException.Source);
+                throw theException;
             }
 
         }

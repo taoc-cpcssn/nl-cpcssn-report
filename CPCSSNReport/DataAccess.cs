@@ -753,7 +753,7 @@ namespace CPCSSNReport
             sqlView = sqlView + " WHERE a.Name_calc IN ('LDL','HBA1C')";
             sqlView = sqlView + " AND a.DateCreated = b.recentDate AND a.Name_calc = b.Name_calc AND a.Patient_ID = b.Patient_ID";
             
-            SQL = "SELECT p.Patient_ID, p.Sex, lr.Name_calc, lr.TestResult FROM "+ContactGroup+", DiseaseCase i, (" + sqlView + ") AS lr";
+            SQL = "SELECT p.Patient_ID, p.Sex, lr.Name_calc, lr.TestResult_calc FROM "+ContactGroup+", DiseaseCase i, (" + sqlView + ") AS lr";
             SQL = SQL + " WHERE p.Patient_ID = i.Patient_ID";
             SQL = SQL + " AND p.Patient_ID = lr.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Diabetes Mellitus'";
@@ -1170,7 +1170,7 @@ namespace CPCSSNReport
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
-            SQL = SQL + " AND LEFT(Code_calc,5) IN ('N06AB','N06AX')";
+            SQL = SQL + " AND Code_calc IN ('N06AB02','N06AB03','N06AB04','N06AB05','N06AB06','N06AB08','N06AB10','N06AX16','N06AX17','N06AX21','N06AX23')";
             SQL = SQL + filter;
             SQL = SQL + " GROUP BY p.Sex, m.Patient_ID";
             SQL = SQL + ") AS PtMed GROUP BY Sex";
@@ -1206,7 +1206,7 @@ namespace CPCSSNReport
             SQL = SQL + " AND p.Patient_ID = m.Patient_ID";
             SQL = SQL + " AND i.Disease = 'Depression'";
             SQL = SQL + " AND (m.StopDate IS NULL OR m.StopDate>=#" + sBeginDate + "#)";
-            SQL = SQL + " AND LEFT(Code_calc,5) IN ('N06AG','N06AF')";
+            SQL = SQL + " AND (LEFT(Code_calc,5) IN ('N06AG','N06AF','N06AX') AND Code_calc NOT IN ('N06AX16','N06AX17','N06AX21','N06AX23'))";
             SQL = SQL + filter;
             SQL = SQL + " GROUP BY p.Sex, m.Patient_ID";
             SQL = SQL + ") AS PtMed GROUP BY Sex";
